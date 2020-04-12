@@ -44,12 +44,12 @@ for col in Columns:
 print("Shape of train_data: {}".format(train_data.shape))
 train_data.head()
 
-numeric_features = train_data.dtypes[train_data.dtypes != "object"].index
-print(numeric_features)
+integer_features = train_data.dtypes[train_data.dtypes != "int64"].index
+print(interger_features)
 
 # Check the skew of all numerical features
 from scipy.stats import skew
-skewness = train_data[numeric_features].apply(lambda x: skew(x))
+skewness = train_data[integer_features].apply(lambda x: skew(x))
 skew = pd.DataFrame({'Skew' :skewness})
 skew.head(10)
 #normal distributed data, the skew is 0
