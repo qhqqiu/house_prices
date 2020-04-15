@@ -1,9 +1,9 @@
-# house_prices is still under revision! 
+# house_prices
 Codes for Kaggle contest of house-price predictions: https://www.kaggle.com/c/house-prices-advanced-regression-techniques
 
-## I'm trying to implement Xgboost here.
+I'm trying to implement Xgboost here.
 
-## A rough list of I've got for now:
+A rough list of I've got for now:
 
 1. Loading train and test data
 
@@ -16,5 +16,3 @@ Codes for Kaggle contest of house-price predictions: https://www.kaggle.com/c/ho
 3. Implementing Xgboost on the train data
 * Tuning parameters with gola of small learning rate and large n_estimator 
 
-## At this point of time, the implementaion did not work out well. It seems that data preprocessing is not enough.
-## Will commmit soon after fixing the problem
