@@ -1,147 +1,118 @@
 import numpy as np
 import pandas as pd
+from dfply import *
+#adjust display to get a better view of columns and rows
+pd.options.display.max_rows = 100
+pd.options.display.max_columns = 500
+print(pd.options.display.max_rows)
+print(pd.options.display.max_columns)
 
-train_data = pd.read_csv("train.csv")
-test_data = pd.read_csv("test.csv")
+train_0 = pd.read_csv("train.csv")
+test_0 = pd.read_csv("test.csv")
 
 #briefly checking the training data
-train_data.head()
+train_0.head()
 
-train_data.columns
-#notice that 'SalePrice' is the y 
+#check data types
+types=np.array(train_0.dtypes)
+types_df=pd.DataFrame(train_0.dtypes)
+types_df.columns=['types']
+types_df_count=pd.DataFrame(types_df['types'].value_counts())
+types_df_count.columns=['counts']
+types_df_count
 
-train_data.info
+len(train_0.columns)
 
-#data cleaning 
-aa = train_data.isnull().sum() #checking how many nulls each columns has
-aa[aa>0].sort_values(ascending=False) #only listing the columns that have nulls, and listing in descending order 
+train_0=train_0.set_index(['Id'])
+test_0= test_0.set_index(['Id'])
 
-#for part of the features, replacing nulls with "None"
-columns_1= ["PoolQC", "MiscFeature", "Alley", "Fence", "FireplaceQu", "GarageYrBlt", "GarageType", "GarageFinish", "GarageQual", "GarageCond", "BsmtFinType2", "BsmtExposure", "BsmtFinType1", "BsmtCond",   "MasVnrType", "Electrical"]
-for column in columns_1:
-    train_data[column].fillna("None", inplace=True)
+train_0_X = train_0.iloc[:, 1:79]
+train_0_y = train_0['SalePrice']
+test_0_X =test_0.copy()
 
-#for other features, replacing nulls with "0"
-columns_2 = ["BsmtQual","MasVnrArea", 'LotFrontage']
-for column in columns_2:
-    train_data[column].fillna("0", inplace=True)
+all=pd.concat([train_0_X,test_0_X])
 
-aa = train_data.isnull().sum()
-print(aa)
+all.fillna(0,inplace=True)
 
-#categorical features are represented as numerical, so I need to convert them to string
-NumStr = ["MSSubClass","BsmtFullBath","BsmtHalfBath","HalfBath","BedroomAbvGr","KitchenAbvGr","MoSold","YrSold","YearBuilt","YearRemodAdd","LowQualFinSF","GarageYrBlt"]
-for col in NumStr:
-    train_data[col] = train_data[col].astype(str)
+categorical = pd.DataFrame()
+numeric = pd.DataFrame()
+for k in all.columns:
+    dtype_k = all[k].dtype
+    if dtype_k == 'object':
+        categorical[k] = all[k]
+    else:
+            numeric[k] = all[k]
 
-#then, I use label encoding to label these categorical features
-from sklearn.preprocessing import LabelEncoder
-Columns = ["MSSubClass","BsmtFullBath","BsmtHalfBath","HalfBath","BedroomAbvGr","KitchenAbvGr","MoSold","YrSold","YearBuilt","YearRemodAdd","LowQualFinSF","GarageYrBlt"]
+categorical.head()
+print(categorical.columns)
+print(categorical.shape)
+numeric.head()
+
+import sklearn as sk
+from sklearn import preprocessing
+from sklearn.preprocessing import OneHotEncoder,PolynomialFeatures
+from sklearn import preprocessing
+Columns = ['Alley', 'BldgType', 'BsmtCond', 'BsmtExposure', 'BsmtFinType1',
+       'BsmtFinType2', 'BsmtQual', 'CentralAir', 'Condition1', 'Condition2',
+       'Electrical', 'ExterCond', 'ExterQual', 'Exterior1st', 'Exterior2nd',
+       'Fence', 'FireplaceQu', 'Foundation', 'Functional', 'GarageCond',
+       'GarageFinish', 'GarageQual', 'GarageType', 'Heating', 'HeatingQC',
+       'HouseStyle', 'KitchenQual', 'LandContour', 'LandSlope', 'LotConfig',
+       'LotShape', 'MSZoning', 'MasVnrType', 'MiscFeature', 'Neighborhood',
+       'PavedDrive', 'PoolQC', 'RoofMatl', 'RoofStyle', 'SaleCondition',
+       'SaleType', 'Street', 'Utilities']
 for col in Columns:
-    labelencoder = LabelEncoder()
-    labelencoder.fit(list(train_data[col].values))
-    train_data[col] = labelencoder.transform(list(train_data[col].values))
-print("Shape of train_data: {}".format(train_data.shape))
-train_data.head()
-
-integer_features = train_data.dtypes[train_data.dtypes != "int64"].index
-print(interger_features)
-
-# Check the skew of all numerical features
-from scipy.stats import skew
-skewness = train_data[integer_features].apply(lambda x: skew(x))
-skew = pd.DataFrame({'Skew' :skewness})
-skew.head(10)
-#normal distributed data, the skew is 0
-#skew less thatn 0, meaning there's more wight on the left tail of the distrubution 
-#skew greater thatn 0, meaning there's more wight on the right tail of the distrubution  
-
-#use log1p to normalize skewed features
-skewness_features = skewness[abs(skewness) >= 0.5].index #target features that skewness absolutes over than 0.5
-#train_data[skewed_features.index] = np.log1p(train_data[skewed_features])
-print(skewness_features)
-train_data[skewness_features] = np.log1p(train_data[skewness_features])
-train_data.head()
-
-#Convert categorical variable into dummy/indicator variables.
-train_data = pd.get_dummies(data=train_data,dummy_na=True) 
-train_data.head()
-train_data.shape
-
-X_train = train_data.iloc[:, 1:-1]
-print(X_train)
-print(X_train.shape)
-X_train = X_train.as_matrix()
-
-y_train = train_data.iloc[:, -1]
-print(y_train)
-print(y_train.shape)
-#y_train = y_train.as_matrix()
-
-from xgboost import XGBRegressor
-model = XGBRegressor()
-model.fit(X_train, y_train, verbose=False)
-
-#tuning prarameters of xgboost
-#generally small learning rate and large n_estimator makes better xgboost
-from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import StratifiedKFold
-model = XGBRegressor(n_estimator = 1000)
-learning_rate = [0.0001, 0.001, 0.01, 0.1, 0.2, 0.3]
-param_grid = dict(learning_rate = learning_rate)
-kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=7)
-grid_search = GridSearchCV(model, param_grid, n_jobs=-1, cv=kfold) #setting n_jobs to makes it run faster
-grid_result = grid_search.fit(X_train, y_train)
-print("Best: %f of using %s" % (grid_result.best_score_, grid_result.best_params_))
-
-aa = test_data.isnull().sum() #checking how many nulls each columns has
-aa[aa>0].sort_values(ascending=False) #only listing the columns that have nulls, and listing in descending order 
-columns_1= ["PoolQC", "MiscFeature", "Alley", "Fence", "FireplaceQu", "GarageYrBlt", "GarageType", "GarageFinish", "GarageQual", "GarageCond", "BsmtFinType2", "BsmtExposure", "BsmtFinType1", "BsmtCond",   "MasVnrType", "Electrical"]
-for column in columns_1:
-    test_data[column].fillna("None", inplace=True)
+    labelencoder = preprocessing.LabelEncoder()
+    labelencoder.fit(list(categorical[col].values))
+    categorical[col] = labelencoder.transform(list(categorical[col].values))
     
-columns_2 = ["BsmtQual","MasVnrArea", 'LotFrontage']
-for column in columns_2:
-    test_data[column].fillna("0", inplace=True)
-aa = train_data.isnull().sum()
-print(aa)
+print("Shape of categorical data: {}".format(categorical.shape))
+print(categorical.head())
 
-NumStr = ["MSSubClass","BsmtFullBath","BsmtHalfBath","HalfBath","BedroomAbvGr","KitchenAbvGr","MoSold","YrSold","YearBuilt","YearRemodAdd","LowQualFinSF","GarageYrBlt"]
-for col in NumStr:
-    test_data[col] = test_data[col].astype(str)
+from sklearn.preprocessing import OneHotEncoder, PolynomialFeatures
+onehotencoder = OneHotEncoder(sparse=False,dtype=np.int)
+categorical = pd.DataFrame(onehotencoder.fit_transform(categorical), index = categorical.index)
 
-from sklearn.preprocessing import LabelEncoder
-Columns = ["MSSubClass","BsmtFullBath","BsmtHalfBath","HalfBath","BedroomAbvGr","KitchenAbvGr","MoSold","YrSold","YearBuilt","YearRemodAdd","LowQualFinSF","GarageYrBlt"]
-for col in Columns:
-    labelencoder = LabelEncoder()
-    labelencoder.fit(list(test_data[col].values))
-    test_data[col] = labelencoder.transform(list(test_data[col].values))
-print("Shape of train_data: {}".format(test_data.shape))
+print(categorical.head())
 
-test_data.head()
+pf = PolynomialFeatures(degree=2,interaction_only=True,include_bias=False)
+numeric = pd.DataFrame(pf.fit_transform(numeric), index = numeric.index)
 
-numeric_features = test_data.dtypes[test_data.dtypes != "object"].index
-print(numeric_features)
-from scipy.stats import skew
-skewness = test_data[numeric_features].apply(lambda x: skew(x))
-skew = pd.DataFrame({'Skew' :skewness})
-skew.head(10)
+all = pd.concat([categorical, numeric], axis=1)
+all.columns = np.arange(all.shape[1])
+all.head()
 
-skewness_features = skewness[abs(skewness) >= 0.5].index #target features that skewness absolutes over than 0.5
-#train_data[skewed_features.index] = np.log1p(train_data[skewed_features])
-print(skewness_features)
-test_data[skewness_features] = np.log1p(test_data[skewness_features])
-test_data.head()
-test_data.shape
+train_1_X=all.loc[train_0_X.index,:]
+test_1_X=all.loc[test_0_X.index,:]
+train_1_y=train_0_y.copy()
 
-test_data = pd.get_dummies(data=test_data,dummy_na=True) 
-test_data.head()
-test_data.shape
+print(train_1_X.shape)
+print(test_1_X.shape)
 
-X_test = test_data.drop(["Id"], axis=1)
-print(X_test)
-print(X_test.shape)
-X_test.head()
-X_test = X_test.as_matrix()
+import xgboost as xgb
+D_train = xgb.DMatrix(train_1_X, label=train_1_y)
+D_test = xgb.DMatrix(test_1_X)
 
-predictions = grid_search.predict(X_test)
+params = {
+            'objective': 'reg:gamma',
+            'eta': 0.002,
+            'seed': 0,
+            'missing': -999,
+            'silent' : 1,
+            'gamma' : 0.02,
+            'subsample' : 0.5,
+            'alpha' : 0.045,
+            'max_depth':4,
+            'min_child_weight':1
+            }
+num_rounds=20000
+
+#attention: The eta parameter is importaant! It gives us a chance to prevent overfitting.
+#objective = the loss function being used
+
+model = xgb.train(params, D_train, num_rounds)
+
+preds = pd.Series(model.predict(D_test),index=test_1_X.index)
+results = pd.DataFrame(preds,columns=['SalePrice'])
+results.to_csv("results.csv", index=False)
+print(pd.read_csv("results.csv"))
